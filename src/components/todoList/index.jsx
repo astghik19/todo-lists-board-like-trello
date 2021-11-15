@@ -5,6 +5,7 @@ import AddListModal from '../../modals/addList';
 import AddListItemModal from '../../modals/addListItem';
 import './index.scss';
 import List from './list';
+import { DragDropContext } from "react-beautiful-dnd";
 
 const TodoList = () => {
     const [todoLists, setTodoLists] = useState([]);
@@ -18,7 +19,7 @@ const TodoList = () => {
         setTodoLists((prev) => ([
             ...prev,
             {
-                id: prev.length + 1,
+                id: Math.random().toString(),
                 title,
                 items: [],
             },
@@ -37,7 +38,7 @@ const TodoList = () => {
                 ...list.items,
                 {
                     ...data,
-                    id: list.items.length + 1,
+                    id: Math.random().toString(),
                 }
             ];
         }
@@ -68,17 +69,36 @@ const TodoList = () => {
         setIsAddListItemModalOpen(true);
     };
 
-    const updateListItems = (listId, list) => {
-        const listsCopy = [...todoLists];
-        const index = listsCopy.findIndex(({ id }) => id === listId);
-        listsCopy[index] = list;
-        setTodoLists(listsCopy);
-    };
-
     const closeAddListModal = () => {
         setIsAddListItemModalOpen(false);
         setUpdatingItem(null);
     };
+
+    const handleOnDragEnd = (result) => {
+        if (!result.destination) return;
+
+        const listsCopy = [...todoLists];
+
+        const currentListIndex = todoLists.findIndex(({ id }) => id === result.source.droppableId);
+        const currentList = todoLists[currentListIndex];
+        const currentListItems = Array.from(currentList.items);
+        const [reorderedItem] = currentListItems.splice(result.source.index, 1);
+
+        if (result.source.droppableId === result.destination.droppableId) {
+            currentListItems.splice(result.destination.index, 0, reorderedItem);
+            listsCopy[currentListIndex].items = currentListItems;
+            setTodoLists(listsCopy);
+        } else {
+            const destinationListIndex = todoLists.findIndex(({ id }) => id === result.destination.droppableId);
+            const destinationList = todoLists[destinationListIndex];
+            const destinationListItems = Array.from(destinationList.items);
+
+            destinationListItems.splice(result.destination.index, 0, reorderedItem);
+            listsCopy[destinationListIndex].items = destinationListItems;
+            listsCopy[currentListIndex].items = currentListItems;
+            setTodoLists(listsCopy);
+        }
+    }
 
     return (
         <div id="todo-list">
@@ -93,16 +113,17 @@ const TodoList = () => {
                     </Button>
                 </div>
                 <Grid container className="main-content">
-                    {todoLists.map((list) => (
-                        <List
-                            key={list.id}
-                            list={list}
-                            updateListItems={updateListItems}
-                            removeList={removeList}
-                            openAddItemModal={openAddItemModal}
-                            openAddUpdateItemModal={openAddUpdateItemModal}
-                        />
-                    ))}
+                    <DragDropContext onDragEnd={handleOnDragEnd}>
+                        {todoLists.map((list) => (
+                            <List
+                                key={list.id}
+                                list={list}
+                                removeList={removeList}
+                                openAddItemModal={openAddItemModal}
+                                openAddUpdateItemModal={openAddUpdateItemModal}
+                            />
+                        ))}
+                    </DragDropContext>
                 </Grid>
             </div>
             <AddListModal
